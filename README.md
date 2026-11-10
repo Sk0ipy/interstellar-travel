@@ -43,8 +43,8 @@ Alle spelwaarden (inloggegevens, vlaggen) staan in `backend/config.py`.
 | extra | Overmatige data-exposure in de API | A01:2021 – Broken Access Control | `/api/destinations` (geeft ook `beacon_signal` terug) |
 
 Kwetsbaarheden 1 en 2 zitten in deze repo (website + Flask-backend) en zijn hieronder getest.
-Kwetsbaarheden 3 t/m 6 horen op de Ubuntu-VM's (lanceerserver + controlepaneel) die de crew los opzet;
-die zijn hier nog niet gebouwd.
+Kwetsbaarheden 3 t/m 6 staan als setup-scripts in `vm-setup/` (lanceerserver + controlepaneel-VM);
+zie `vm-setup/README.md` voor hoe je die twee Ubuntu-VM's opzet en de scripts draait.
 
 ## Winnend pad
 
@@ -66,6 +66,23 @@ Dat bestand bevat **vlag extra** (`FLAG_LFI`) en het wachtwoord van het account 
 Dat wachtwoord is op de lanceerserver-VM hergebruikt voor SSH (kwetsbaarheid 3) en is de ingang
 naar de root-toegang via de sudoers-fout (kwetsbaarheid 4) en uiteindelijk het controlepaneel
 (kwetsbaarheden 5 en 6).
+
+### Kwetsbaarheden 3–6 — de twee VM's
+
+6. **SSH met het gelekte wachtwoord.** `ssh flightops@<lanceerserver-ip>` met het wachtwoord uit
+   stap hiervoor.
+7. **Sudoers-fout (kwetsbaarheid 4).** `sudo -l` laat zien dat `flightops` `sudo python3` mag
+   draaien zonder wachtwoord — klassieke GTFOBins-escalatie:
+   `sudo python3 -c 'import os; os.system("/bin/bash")'`. Dat geeft root en **vlag**
+   `VS{ROOT_ON_LAUNCH_SERVER}` in `/root/flag_root.txt`, dat ook het interne IP/poort van het
+   controlepaneel noemt.
+8. **Open interne service (kwetsbaarheid 5).** Vanaf de lanceerserver is
+   `http://<controlepaneel-ip>:8080` bereikbaar: een dashboard zonder enige login, met
+   **vlag** `VS{INTERNAL_PANEL_FOUND}` erop.
+9. **Onbeveiligde upload → reverse shell (kwetsbaarheid 6).** De uploadknop op dat dashboard
+   accepteert elk bestand ongevalideerd; een taak op het controlepaneel voert elk ge-uploade
+   `.py`-bestand elke minuut als root uit. Upload een script met een reverse-shell-payload,
+   vang hem op met een listener, en lees `/root/flag_shell.txt`: **vlag** `VS{CONTROL_PANEL_SHELL}`.
 
 ## Dwaalspoor
 
