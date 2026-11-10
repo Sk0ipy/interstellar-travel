@@ -16,3 +16,7 @@ interstellar_travel_planet_test.glb
 
 # local tooling
 .claude/
+
+# door de LFI-kwetsbaarheid doelwit; runtime-gegenereerd
+backend/private/
+backend/bookings/

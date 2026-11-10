@@ -36,7 +36,26 @@ def install_team_image():
     (target_dir / config.ADMIN_IMAGE_NAME).write_bytes((BASE / "assets" / "team_photo.svg").read_bytes())
 
 
+def install_private_notes():
+    """Zet het interne notitiebestand neer dat buiten de boekingsmap staat
+    (het doelwit van de LFI-kwetsbaarheid, kwetsbaarheid 2)."""
+    target_dir = BASE / "private"
+    target_dir.mkdir(exist_ok=True)
+    (target_dir / "ops_notes.txt").write_text(
+        "INTERSTELLAR TRAVEL - INTERNE NOTITIE (ground-ops)\n"
+        "Niet voor openbare toegang.\n\n"
+        "Service-account voor het check-in-systeem (SSH op de lanceerserver):\n"
+        f"  gebruiker: {config.OPS_USER}\n"
+        f"  wachtwoord: {config.OPS_PASSWORD}\n\n"
+        "Opmerking: dit wachtwoord staat ook op het gedeelde groundops-account.\n"
+        "Niet hergebruiken op andere systemen.\n\n"
+        f"VLAG: {config.FLAG_LFI}\n",
+        encoding="utf-8",
+    )
+
+
 install_team_image()
+install_private_notes()
 
 
 def rows(query, args=()):
@@ -70,6 +89,26 @@ def api_about():
     return jsonify(team_image=f"/static/team/{config.ADMIN_IMAGE_NAME}")
 
 
+MANIFEST_DIR = BASE / "bookings"
+PRIVATE_DIR = BASE / "private"
+
+
+def write_manifest(reference, name, email, code):
+    """Zet het boekingsbestand neer dat de speler straks via de downloadlink ophaalt."""
+    MANIFEST_DIR.mkdir(exist_ok=True)
+    (MANIFEST_DIR / f"{reference}.txt").write_text(
+        "INTERSTELLAR TRAVEL - BOEKINGSBESTAND\n"
+        f"Referentie: {reference}\n"
+        f"Naam: {name}\n"
+        f"E-mail: {email}\n"
+        f"Vlucht: {code}\n\n"
+        "# interne configuratie (niet verwijderen, gebruikt door check-in-systeem)\n"
+        "checkin_service=ground-ops-v3\n"
+        "sync_endpoint=internal://ground-ops\n",
+        encoding="utf-8",
+    )
+
+
 @app.post("/api/book")
 def api_book():
     data = request.get_json(silent=True) or {}
@@ -92,7 +131,19 @@ def api_book():
     conn.execute("UPDATE flights SET seats = seats - 1 WHERE code = ?", (code,))
     conn.commit()
     conn.close()
+    write_manifest(reference, name, email, code)
     return jsonify(reference=reference, flight=code)
+
+
+@app.get("/api/bookings/manifest")
+def api_manifest():
+    """Kwetsbaarheid 2: de bestandsnaam uit de queryparameter wordt zonder
+    validatie aan de map geplakt, waardoor path traversal (LFI) mogelijk is."""
+    name = request.args.get("file", "")
+    target = MANIFEST_DIR / name
+    if not target.is_file():
+        abort(404)
+    return Response(target.read_text(encoding="utf-8", errors="replace"), mimetype="text/plain")
 
 
 # ------------------------------------------------------ dwaalspoor: crew-login
@@ -127,12 +178,26 @@ def admin_required(view):
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin_login():
+    """Kwetsbaarheid 1: de login bouwt de SQL-query met stringopbouw, waardoor
+    gebruikersinvoer rechtstreeks in de query terechtkomt (SQL-injectie)."""
     error = None
     if request.method == "POST":
         user = request.form.get("username", "")
         password = request.form.get("password", "")
-        if same(user, config.ADMIN_USER) and same(password, config.ADMIN_PASSWORD):
+        query = (
+            "SELECT * FROM administrators WHERE username = '" + user + "'"
+            " AND password = '" + password + "'"
+        )
+        conn = db.connect()
+        try:
+            row = conn.execute(query).fetchone()
+        except Exception:
+            row = None
+        finally:
+            conn.close()
+        if row is not None:
             session["admin"] = True
+            session["admin_user"] = row["username"]
             return redirect(url_for("admin_panel"))
         error = "Onjuiste gebruikersnaam of wachtwoord."
     return render_template("admin_login.html", error=error), (401 if error else 200)

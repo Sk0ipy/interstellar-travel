@@ -30,7 +30,12 @@ export default function Book() {
           <h3>Boeking bevestigd</h3>
           <p>Je referentie voor {status.flight}:</p>
           <p className="ref">{status.reference}</p>
-          <Link className="cta small" to="/vluchten">Terug naar de vluchten</Link>
+          <div className="cta-row">
+            <a className="cta small" href={`/api/bookings/manifest?file=${status.reference}.txt`} target="_blank" rel="noreferrer">
+              Download boekingsbestand
+            </a>
+            <Link className="cta small" to="/vluchten">Terug naar de vluchten</Link>
+          </div>
         </div>
       ) : (
         <form className="card narrow-card form" onSubmit={submit}>

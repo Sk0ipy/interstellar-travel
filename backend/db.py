@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS old_bookings (
     flight_code TEXT NOT NULL,
     status TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS administrators (
+    id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS launches (
     id INTEGER PRIMARY KEY,
     rocket TEXT NOT NULL,
@@ -107,6 +112,9 @@ def connect():
 def init_db():
     conn = connect()
     conn.executescript(SCHEMA)
+    if conn.execute("SELECT COUNT(*) FROM administrators").fetchone()[0] == 0:
+        conn.execute("INSERT INTO administrators (username, password) VALUES (?, ?)",
+                     (config.ADMIN_USER, config.ADMIN_PASSWORD))
     if conn.execute("SELECT COUNT(*) FROM destinations").fetchone()[0] == 0:
         conn.executemany(
             "INSERT INTO destinations (slug, name, region, description, distance, status, beacon_signal)"
