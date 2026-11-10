@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Database{% endblock %}
+{% block content %}
+<div class="center">
+  <form class="card narrow" method="post" action="{{ url_for('admin_database') }}">
+    <p class="eyebrow">Database · beveiligd</p>
+    <h1>Toegangscode vereist</h1>
+    <p class="muted">Voer de toegangscode in om de lanceerdata te openen.</p>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <label>Toegangscode
+      <input type="text" name="code" autocomplete="off" required autofocus placeholder="VS{...}">
+    </label>
+    <button type="submit" class="btn">Openen</button>
+  </form>
+</div>
+{% endblock %}

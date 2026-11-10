@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Lanceerdata{% endblock %}
+{% block content %}
+<div class="wrap">
+  <p class="eyebrow">Database · geopend</p>
+  <h1>Lanceerdata</h1>
+
+  <section class="card">
+    <h2>Geplande lanceringen</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Raket</th><th>Route</th><th>Venster</th><th>Pad</th><th>Status</th><th>Lading</th></tr></thead>
+        <tbody>
+        {% for l in launches %}
+          <tr>
+            <td>{{ l.rocket }}</td><td>{{ l.route }}</td><td>{{ l.launch_window }}</td>
+            <td>{{ l.pad }}</td><td>{{ l.status }}</td><td>{{ l.payload }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Recente boekingen</h2>
+    {% if bookings %}
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Referentie</th><th>Naam</th><th>Vlucht</th><th>Aangemaakt</th></tr></thead>
+        <tbody>
+        {% for b in bookings %}
+          <tr><td>{{ b.reference }}</td><td>{{ b.name }}</td><td>{{ b.flight_code }}</td><td>{{ b.created }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">Nog geen boekingen.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

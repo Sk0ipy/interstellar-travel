@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules/
+website/dist/
+backend/.venv/
+__pycache__/
+*.pyc
+
+# generated at runtime
+backend/*.db
+backend/static/team/
+
+# Blender back-ups and old iterations
+*.blend1
+interstellar_travel_planet.blend
+interstellar_travel_planet_test.glb
+
+# local tooling
+.claude/

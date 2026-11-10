@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Adminpaneel{% endblock %}
+{% block content %}
+<div class="wrap">
+  <p class="eyebrow">Beheerpaneel</p>
+  <h1>Welkom terug, fleetadmin</h1>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Toegang bevestigd</h2>
+      <p>Je bent ingelogd als administrator. Bewaar deze code voor het logboek:</p>
+      <p class="flag">{{ flag }}</p>
+    </section>
+
+    <section class="card">
+      <h2>Systeemstatus</h2>
+      <ul class="status">
+        <li><span class="dot ok"></span>Boekingssysteem <small>online</small></li>
+        <li><span class="dot ok"></span>Lanceerplatform A <small>klaar</small></li>
+        <li><span class="dot warn"></span>Kepra Relay <small>gesloten voor passagiers</small></li>
+        <li><span class="dot ok"></span>Monorail <small>online</small></li>
+      </ul>
+    </section>
+
+    <section class="card wide">
+      <h2>Systeemlogboek</h2>
+      <pre class="log">[06:02] boekingen: 14 nieuwe reserveringen verwerkt
+[06:10] monorail: onderhoudsronde afgerond
+[07:45] kepra-relay: beacon-signaal uitgeschakeld, code staat nog in de bestemmingenlijst
+[08:00] launch-ctl: IT-01 gestart vanaf Pad A
+[09:12] db-gateway: lanceerdata verplaatst naar /admin/database (toegangscode vereist)
+[09:13] db-gateway: toegangscode = beacon-signaal van Kepra Relay</pre>
+    </section>
+  </div>
+</div>
+{% endblock %}
