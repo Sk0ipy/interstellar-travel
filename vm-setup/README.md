@@ -1,54 +1,56 @@
 # VM-opzet voor kwetsbaarheden 3–6
 
-Deze map bevat de scripts voor de twee Ubuntu-VM's die kwetsbaarheden 3 t/m 6 hosten.
-De website + Flask-backend (kwetsbaarheden 1–2) staan los hiervan in `website/` en `backend/`.
+Je gebruikt twee VM's:
 
-```
-vm-setup/
-  lanceerserver/     VM1: SSH-login met hergebruikt wachtwoord (3) + misconfigured sudoers (4)
-  controlepaneel/    VM2: open interne service (5) + onbeveiligde upload -> reverse shell (6)
-```
+| VM | Rol |
+|---|---|
+| **Target** | draait de website, de Flask-backend en alles voor kwetsbaarheden 1 t/m 6 |
+| **Aanvaller** | jouw eigen pentest-VM (bijv. Kali/Parrot) waarmee je het target aanvalt |
 
-## 1. VM's aanmaken (VirtualBox)
+Alleen de **target**-VM heeft een setup-script nodig — dat staat in `vm-setup/server/`.
+De aanvaller-VM hoeft niets van deze repo te hebben; die gebruik je gewoon om `nmap`,
+`gobuster`, `ssh`, een reverse-shell-listener (`nc -lvnp <poort>`), etc. te draaien.
 
-Maak **twee** Ubuntu Server 22.04 LTS VM's aan:
+## 1. Target-VM opzetten
 
-| VM | Naam | Netwerk |
-|---|---|---|
-| VM1 | `lanceerserver` | Adapter 1: NAT (voor SSH vanaf je laptop) · Adapter 2: Intern netwerk `vs-internal` |
-| VM2 | `controlepaneel` | Adapter 1: Intern netwerk `vs-internal` (géén NAT — alleen bereikbaar vanaf VM1) |
+Ubuntu Server 22.04 LTS, netwerk zo dat je er met SSH/HTTP bij kan vanaf je aanvaller-VM
+(bijv. beide op "Intern netwerk" of "Host-only" in VirtualBox, of allebei NAT met
+portforwarding).
 
-Zet bij beide VM's 2 CPU's / 2GB RAM / 20GB disk. Installeer Ubuntu Server met een gewoon
-gebruikersaccount (niet "flightops" — dat account maakt het setup-script zelf aan).
-
-Geef VM2 een vast intern IP, bijvoorbeeld `192.168.56.20`, en noteer het IP van VM1 op
-hetzelfde interne netwerk (bijvoorbeeld `192.168.56.10`). Beide scripts vragen hier niet om —
-pas zelf de variabelen boven in `setup.sh` aan als je andere IP's gebruikt.
-
-## 2. Scripts draaien
-
-Kopieer elke map naar de bijbehorende VM (bijv. met `scp -r vm-setup/lanceerserver gebruiker@<ip>:~`)
-en draai op elke VM:
+Op de target-VM:
 
 ```bash
-cd lanceerserver   # of controlepaneel
-chmod +x setup.sh
-sudo ./setup.sh
+sudo apt update && sudo apt install -y git
+git clone https://github.com/Sk0ipy/interstellar-travel.git
+cd interstellar-travel
+sudo ./vm-setup/server/setup.sh
 ```
 
-De scripts zijn idempotent: opnieuw draaien overschrijft alleen de eigen configuratie.
+Dit script:
+- builat en draait de website + Flask-backend op **poort 5000** (kwetsbaarheden 1–2),
+- maakt het account `flightops` aan met SSH-login op wachtwoord (kwetsbaarheid 3),
+- zet een te brede sudoers-regel voor `flightops` neer (kwetsbaarheid 4),
+- start een ongelinkt, niet-geauthenticeerd controlepaneel op **poort 8080** (kwetsbaarheid 5),
+- laat een taak elke minuut elk ge-uploade `.py`-bestand daar als root uitvoeren
+  (kwetsbaarheid 6).
 
-## 3. Hoe het samen een keten vormt
+Het script is idempotent: opnieuw draaien overschrijft alleen zijn eigen configuratie.
 
-1. **Kwetsbaarheid 2 (LFI, al gebouwd)** lekt het wachtwoord van `flightops`.
-2. **Kwetsbaarheid 3 — wachtwoordhergebruik:** dat wachtwoord werkt via SSH op `lanceerserver` (VM1).
-3. **Kwetsbaarheid 4 — misconfigured sudoers:** `flightops` mag `sudo python3` draaien zonder
-   wachtwoord. Dat opent een root-shell → `/root/flag_root.txt`. Daar staat ook het interne
-   IP/poort van `controlepaneel`.
-4. **Kwetsbaarheid 5 — open interne service:** vanaf `lanceerserver` is `controlepaneel:8080`
-   bereikbaar: een dashboard zonder enige authenticatie → `FLAG_PANEL`.
-5. **Kwetsbaarheid 6 — onbeveiligde upload:** de uploadpagina op dat dashboard accepteert elk
-   bestand zonder validatie. Een nachtelijke taak draait elk ge-uploade `.py`-bestand als root —
-   dat geeft een reverse shell → `/root/flag_shell.txt` op `controlepaneel`.
+## 2. Hoe het één keten vormt
 
-Zie `lanceerserver/setup.sh` en `controlepaneel/setup.sh` voor de exacte vlaggen en wachtwoorden.
+1. Speler vindt via `robots.txt` / gobuster / de verborgen hotspot `/admin`.
+2. **Kwetsbaarheid 1 (SQLi)** of de bedoelde route via "Over ons" → ingelogd als admin.
+3. Databasepaneel → **kwetsbaarheid 1-vervolg**: verstopte vlag via `/api/destinations`
+   (`beacon_signal`) als toegangscode → lanceerdata-vlag.
+4. Speler boekt een vlucht en downloadt het boekingsbestand → **kwetsbaarheid 2 (LFI)**:
+   `?file=../private/ops_notes.txt` lekt het wachtwoord van `flightops`.
+5. **Kwetsbaarheid 3:** `ssh flightops@<target-ip>` met dat wachtwoord.
+6. **Kwetsbaarheid 4:** `sudo -l` toont `sudo python3` zonder wachtwoord →
+   `sudo python3 -c 'import os; os.system("/bin/bash")'` → root, vlag in `/root/flag_root.txt`.
+7. **Kwetsbaarheid 5:** een portscan (`nmap <target-ip>`) vindt poort 8080 — een dashboard
+   zonder login, nergens vanaf de website gelinkt.
+8. **Kwetsbaarheid 6:** upload een `.py`-bestand met een reverse-shell-payload via dat
+   dashboard, vang de verbinding op met `nc -lvnp <poort>` op je aanvaller-VM, en lees
+   `/root/flag_shell.txt`.
+
+Zie `server/setup.sh` voor de exacte wachtwoorden en vlaggen.

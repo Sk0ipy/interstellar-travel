@@ -36,15 +36,15 @@ Alle spelwaarden (inloggegevens, vlaggen) staan in `backend/config.py`.
 |---|---|---|---|
 | 1 | SQL-injectie in de admin-login | A03:2021 – Injection | `/admin` (POST, website/backend) |
 | 2 | Local File Inclusion in de downloadfunctie | A01:2021 – Broken Access Control (path traversal) | `/api/bookings/manifest?file=` |
-| 3 | Wachtwoordhergebruik (flightops) | A07:2021 – Identification and Authentication Failures | SSH op de lanceerserver-VM |
-| 4 | Misconfigured sudoers | A05:2021 – Security Misconfiguration | lanceerserver-VM, account `flightops` |
-| 5 | Verouderde/open interne service | A06:2021 – Vulnerable and Outdated Components | controlepaneel-VM (alleen vanaf de lanceerserver bereikbaar) |
-| 6 | Onbeveiligde file-upload (reverse shell) | A08:2021 – Software and Data Integrity Failures | controlepaneel-VM, uploadpagina |
+| 3 | Wachtwoordhergebruik (flightops) | A07:2021 – Identification and Authentication Failures | SSH op de target-VM |
+| 4 | Misconfigured sudoers | A05:2021 – Security Misconfiguration | target-VM, account `flightops` |
+| 5 | Verouderde/open interne service | A06:2021 – Vulnerable and Outdated Components | target-VM, poort 8080 (nergens gelinkt) |
+| 6 | Onbeveiligde file-upload (reverse shell) | A08:2021 – Software and Data Integrity Failures | target-VM, uploadpagina op poort 8080 |
 | extra | Overmatige data-exposure in de API | A01:2021 – Broken Access Control | `/api/destinations` (geeft ook `beacon_signal` terug) |
 
-Kwetsbaarheden 1 en 2 zitten in deze repo (website + Flask-backend) en zijn hieronder getest.
-Kwetsbaarheden 3 t/m 6 staan als setup-scripts in `vm-setup/` (lanceerserver + controlepaneel-VM);
-zie `vm-setup/README.md` voor hoe je die twee Ubuntu-VM's opzet en de scripts draait.
+Kwetsbaarheden 1 en 2 zitten in deze repo (website + Flask-backend). Kwetsbaarheden 3 t/m 6
+staan als setup-script in `vm-setup/server/` en draaien op dezelfde Ubuntu-VM als de website
+(één target-VM; een tweede VM is je eigen aanvaller-machine). Zie `vm-setup/README.md`.
 
 ## Winnend pad
 
@@ -63,26 +63,25 @@ Na het boeken van een vlucht (`/boeken`) staat er een downloadknop voor het boek
 (`/api/bookings/manifest?file=<referentie>.txt`). De bestandsnaam uit de queryparameter wordt
 zonder validatie gebruikt, dus `?file=../private/ops_notes.txt` ontsnapt uit de boekingsmap.
 Dat bestand bevat **vlag extra** (`FLAG_LFI`) en het wachtwoord van het account `flightops`.
-Dat wachtwoord is op de lanceerserver-VM hergebruikt voor SSH (kwetsbaarheid 3) en is de ingang
-naar de root-toegang via de sudoers-fout (kwetsbaarheid 4) en uiteindelijk het controlepaneel
-(kwetsbaarheden 5 en 6).
+Dat wachtwoord is op de target-VM hergebruikt voor SSH (kwetsbaarheid 3) en is de ingang naar
+root-toegang via de sudoers-fout (kwetsbaarheid 4) en uiteindelijk het controlepaneel
+(kwetsbaarheden 5 en 6) — alles op diezelfde VM, zie `vm-setup/`.
 
-### Kwetsbaarheden 3–6 — de twee VM's
+### Kwetsbaarheden 3–6
 
-6. **SSH met het gelekte wachtwoord.** `ssh flightops@<lanceerserver-ip>` met het wachtwoord uit
+6. **SSH met het gelekte wachtwoord.** `ssh flightops@<target-ip>` met het wachtwoord uit
    stap hiervoor.
 7. **Sudoers-fout (kwetsbaarheid 4).** `sudo -l` laat zien dat `flightops` `sudo python3` mag
    draaien zonder wachtwoord — klassieke GTFOBins-escalatie:
    `sudo python3 -c 'import os; os.system("/bin/bash")'`. Dat geeft root en **vlag**
-   `VS{ROOT_ON_LAUNCH_SERVER}` in `/root/flag_root.txt`, dat ook het interne IP/poort van het
-   controlepaneel noemt.
-8. **Open interne service (kwetsbaarheid 5).** Vanaf de lanceerserver is
-   `http://<controlepaneel-ip>:8080` bereikbaar: een dashboard zonder enige login, met
+   `VS{ROOT_ON_LAUNCH_SERVER}` in `/root/flag_root.txt`.
+8. **Ongelinkte, open service (kwetsbaarheid 5).** Een portscan (`nmap <target-ip>`) vindt
+   poort 8080: een dashboard zonder enige login, nergens vanaf de website gelinkt, met
    **vlag** `VS{INTERNAL_PANEL_FOUND}` erop.
 9. **Onbeveiligde upload → reverse shell (kwetsbaarheid 6).** De uploadknop op dat dashboard
-   accepteert elk bestand ongevalideerd; een taak op het controlepaneel voert elk ge-uploade
-   `.py`-bestand elke minuut als root uit. Upload een script met een reverse-shell-payload,
-   vang hem op met een listener, en lees `/root/flag_shell.txt`: **vlag** `VS{CONTROL_PANEL_SHELL}`.
+   accepteert elk bestand ongevalideerd; een taak voert elk ge-uploade `.py`-bestand elke minuut
+   als root uit. Upload een script met een reverse-shell-payload, vang hem op met een listener
+   op je aanvaller-VM, en lees `/root/flag_shell.txt`: **vlag** `VS{CONTROL_PANEL_SHELL}`.
 
 ## Dwaalspoor
 

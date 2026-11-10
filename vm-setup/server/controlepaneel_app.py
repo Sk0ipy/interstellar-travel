@@ -1,7 +1,8 @@
-"""Controlepaneel: interne dashboard-app voor kwetsbaarheden 5 en 6.
+"""Controlepaneel: dashboard-app voor kwetsbaarheden 5 en 6.
 
-Kwetsbaarheid 5: dit dashboard heeft geen enkele authenticatie — iedereen die
-bij poort 8080 op het interne netwerk kan, ziet het direct.
+Kwetsbaarheid 5: dit dashboard heeft geen enkele authenticatie en staat nergens
+gelinkt vanaf de publieke website — alleen te vinden door de poort (8080) te
+scannen, bijvoorbeeld met nmap.
 
 Kwetsbaarheid 6: de uploadpagina accepteert elk bestand zonder enige validatie
 (geen extensie-check, geen contentcheck). Een cronjob (zie setup.sh) voert elk
@@ -23,7 +24,7 @@ PAGE = """<!doctype html>
 <html lang="nl"><head><meta charset="utf-8"><title>Controlepaneel</title></head>
 <body style="font-family: sans-serif; max-width: 640px; margin: 40px auto;">
   <h1>Interstellar Travel — Controlepaneel</h1>
-  <p>Intern dashboard voor lanceeroperaties. Geen login vereist op dit netwerk.</p>
+  <p>Beheerdashboard voor lanceeroperaties. Niet publiek gelinkt, geen login vereist.</p>
   <p><strong>Statusvlag:</strong> {flag}</p>
   <h2>Bestanden</h2>
   <ul>{files}</ul>
