@@ -22,7 +22,7 @@ fi
 
 echo "==> Pakketten installeren"
 apt-get update -y
-apt-get install -y python3 python3-venv python3-pip python3-flask nodejs npm
+apt-get install -y python3 python3-venv python3-pip python3-flask nodejs npm openssh-server
 
 echo "==> Website builden"
 cd "${REPO_DIR}/website"
@@ -59,6 +59,7 @@ sed -i \
   -e 's/^#\?PasswordAuthentication .*/PasswordAuthentication yes/' \
   -e 's/^#\?PermitRootLogin .*/PermitRootLogin no/' \
   /etc/ssh/sshd_config
+systemctl enable --now ssh
 systemctl restart ssh
 
 # --- kwetsbaarheid 4: misconfigured sudoers ---
